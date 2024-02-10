@@ -1,0 +1,22 @@
+<schemalist>
+    <schema id="org.gnome.shell.extensions.icongridmodifier" path="/org/gnome/shell/extensions/icongridmodifier/">
+        <key name="grid-value" type="s">
+            <default>"3x8"</default>
+        </key>
+        <key name="row-value-and-current-active-button" type="s">
+            <default>"3"</default>
+        </key>
+        <key name="column-value-and-current-active-button" type="s">
+        <default>"8"</default>
+        </key>
+        <key name="psuedo" type="b">
+            <default>true</default>
+        </key>
+        <key name="relax" type="b">
+            <default>false</default>
+        </key>
+        <key name="did-something" type="b">
+            <default>false</default>
+        </key>
+    </schema>
+</schemalist>

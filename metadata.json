@@ -1,0 +1,8 @@
+{
+    "uuid": "icongridmodifier@mousinahangeratgmail.com",
+    "name": "Icon Grid Modifier",
+    "description": "Change the number of Rows and Columns and to some extent change Icon size as well. I'll add more features soon",
+    "shell-version": [ "45" ],
+    "url": "github.com/Mou786Aha/Icon-Grid-Modifier-For-Gnome",
+    "settings-schema": "org.gnome.shell.extensions.icongridmodifier"
+}
