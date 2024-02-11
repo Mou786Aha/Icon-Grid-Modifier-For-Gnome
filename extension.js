@@ -41,7 +41,17 @@ export default class SizeChanger extends Extension {
         }
         this.adaptToSizeParams = null;
         this.special_injection_helper = "not-initialized";
+
+        if (this.settings.get_boolean("did-something") == false) {
+            this.startup_tasks();
         }
+    }
+    // V-0.0.2 changes below = Aim: no longer assume the grid mode as 3x8
+    startup_tasks () {
+        let value = `${overview._overview._controls._appDisplay._grid.layout_manager.rows_per_page}x${overview._overview._controls._appDisplay._grid.layout_manager.columns_per_page}`;
+        let G_value = GLib.Variant.new_string(value);
+        this.settings.set_value("grid-value", G_value);
+    }
 
     injection_new ()  {
         this._injectionManager.overrideMethod(IconGrid.prototype, '_findBestModeForSize', originalMethod => {
