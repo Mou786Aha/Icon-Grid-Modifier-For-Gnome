@@ -1,11 +1,11 @@
-/*                                         ISSUES
-1. Consider helping with this warning and tell me how serious is this: 
+/* I have given up special_injection() == meant for adjusting icon size, instead invoking overview.showApps() and then _appDisplay.redisplay() should be enough to update icon size. This also minimizes, clutter.allocation errors
+and maybe even eliminates them, but this time overview.showApps() should be called in always!*/
 
-(gnome-shell:4470): Clutter-WARNING **: 17:39:03.933: Can't update stage views actor <unnamed>[<Gjs_ui_appDisplay_AppDisplay>:0x55561e970ab0] is on because it needs an allocation.
-
-(gnome-shell:4470): Clutter-WARNING **: 17:39:03.933: Can't update stage views actor <unnamed>[<StBoxLayout>:0x55561ee47230] is on because it needs an allocation.
-
-Occurs when running injection() == meant for live testing, stable_injection() works fine (meant for future runs)
+/* Notes for reviewers: 
+1. this._gridModes line 71 and other lines is not my class's property, so it can't be accessed in disable(), so I can't set it to null like this._gridModes = null; But note that injectionmanager.clear()
+is enough for clearing the whole injection itself. It's also true for other properties like this.layout_manager, that are not mine (they're of target class)
+2. The timeout setTimeout() in caller() method is used for to display a toast in UI (during this timeout toast displays in UI prefs.js). Timeout doesn't run on future runs, it's only meant to inform the user about which grid mode has been set and whether applied already or not, while user tries out different modes. User won't see the toast if I remove timeout. For user info the toast should be displayed, you might ask why not stop invoking overview.showApps() and
+display toast only, reason is that changes might not apply well while Appgrid is not invoked. if i immediately try to change gridMode without invoking AppGrid, it won't refresh at all! So timeout is necessary for user info
 */
 
 /*                                          CREDITS
@@ -39,8 +39,6 @@ export default class SizeChanger extends Extension {
         if (this.settings.get_boolean("did-something") == false) {
             this.openPreferences();
         }
-        this.adaptToSizeParams = null;
-        this.special_injection_helper = "not-initialized";
 
         if (this.settings.get_boolean("did-something") == false) {
             this.startup_tasks();
@@ -52,17 +50,7 @@ export default class SizeChanger extends Extension {
         let G_value = GLib.Variant.new_string(value);
         this.settings.set_value("grid-value", G_value);
     }
-
-    injection_new ()  {
-        this._injectionManager.overrideMethod(IconGrid.prototype, '_findBestModeForSize', originalMethod => {
-            return function (width, height) {
-                if (this._gridModes[0].rows == 3 && this._gridModes[0].columns == 3) { this._gridModes = [{rows: 4, columns: 4}]}
-                else {this._gridModes = [{rows: 4, columns: 4}]}
-                originalMethod.call(this, width, height);
-            }
-        });
-    }
-
+    
     stable_injection () {
         let mode = this.settings.get_string("grid-value");
         let index_of_x = mode.indexOf("x");
@@ -81,44 +69,8 @@ export default class SizeChanger extends Extension {
         });
     }
 
-    special_injection () {
-        let injection = this.special_injection_helper;
-        let adaptToSizeParamsHelper = { pageWidth: null, pageHeight: null};
-        this._injectionManager.overrideMethod(IconGridLayout.prototype, 'adaptToSize', originalMethod => {
-            return function (pageWidth, pageHeight) {
-                originalMethod.call(this, pageWidth, pageHeight);
-                if (injection == "initialized") {
-                    // It's not me
-                    this._pageWidth = pageWidth;
-                    this._pageHeight = pageHeight;
-                    this._pageSizeChanged = true;
-
-                    if (this._updateIconSizesLaterId === 0) {
-                        const laters = global.compositor.get_laters();
-                        this._updateIconSizesLaterId = laters.add(Meta.LaterType.BEFORE_REDRAW, () => {
-                            const iconSize = this._findBestIconSize();
-                                if (this._iconSize !== iconSize) {
-                                    this._iconSize = iconSize;
-                                    for (const child of this._container) child.icon.setIconSize(iconSize); this.notify('icon-size');
-                                }
-                            this._updateIconSizesLaterId = 0;
-                            return GLib.SOURCE_REMOVE;
-                        });
-                    }
-                }
-                // Till here
-                injection = "is-done";
-                adaptToSizeParamsHelper.pageWidth = pageWidth;
-                adaptToSizeParamsHelper.pageHeight = pageHeight;
-
-            }
-        });
-        this.adaptToSizeParams = adaptToSizeParamsHelper;
-    }
-
     injection (n_rows, n_columns) {
         let have_to_set_grid = "yes";
-        let adaptToSizeParamsHelper = this.adaptToSizeParams;
         this._injectionManager.overrideMethod(IconGrid.prototype, '_findBestModeForSize', originalMethod => {
             return function (width, height) {
                 if (this._gridModes[0].rows == 3 && this._gridModes[0].columns == 3) { this._gridModes = [{rows: 4, columns: 4}]}
@@ -130,7 +82,6 @@ export default class SizeChanger extends Extension {
                         this.layout_manager.columns_per_page = n_columns;
                     }
                 }
-                overview._overview._controls._appDisplay._grid.layout_manager.adaptToSize(adaptToSizeParamsHelper.pageWidth, adaptToSizeParamsHelper.pageHeight);
                 this.layout_manager._updatePages();
                 for (let pageIndex = 0; pageIndex < this.layout_manager._pages.length; pageIndex++) {
                     this.layout_manager._fillItemVacancies(pageIndex);
@@ -146,8 +97,6 @@ export default class SizeChanger extends Extension {
         function runner () {
             overview.showApps();
             this._injectionManager?.clear();
-            this.special_injection_helper = "initialized";
-            this.special_injection();
             let mode = this.settings.get_string("grid-value");
             let index_of_x = mode.indexOf("x");
             let rows = mode.slice(0, index_of_x);
